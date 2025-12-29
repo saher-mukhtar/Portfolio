@@ -96,6 +96,154 @@ const typed = new Typed(".multiple-text", {
   loop: true,
 });
 
+/* ===== Forms Filter + Show more (collapsed view) ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  const formCards = Array.from(document.querySelectorAll(".form-card"));
+  const toggle = document.getElementById("forms-toggle");
+  let collapsed = true;
+  let currentFilter = "all";
+  const MIN_VISIBLE = 9;
+
+  function getMatchingCards() {
+    return formCards.filter(
+      (card) => currentFilter === "all" || card.dataset.type === currentFilter
+    );
+  }
+
+  function hideCard(card) {
+    // cancel pending show timers
+    if (card._showTimeout) {
+      clearTimeout(card._showTimeout);
+      delete card._showTimeout;
+    }
+
+    // add hidden class to animate collapse
+    card.classList.add("hidden");
+    card.setAttribute("aria-hidden", "true");
+
+    // clear any previous hide timeout
+    if (card._hideTimeout) clearTimeout(card._hideTimeout);
+
+    // After the transition ends (or as a fallback after 450ms), set display:none to remove from grid flow
+    const onEnd = (e) => {
+      if (e.propertyName === "max-height" || e.propertyName === "opacity") {
+        card.style.display = "none";
+        card.removeEventListener("transitionend", onEnd);
+        if (card._hideTimeout) {
+          clearTimeout(card._hideTimeout);
+          delete card._hideTimeout;
+        }
+      }
+    };
+
+    card.addEventListener("transitionend", onEnd);
+
+    // fallback in case transitionend doesn't fire
+    card._hideTimeout = setTimeout(() => {
+      card.style.display = "none";
+      card.removeEventListener("transitionend", onEnd);
+      delete card._hideTimeout;
+    }, 500);
+  }
+
+  function showCard(card) {
+    // cancel pending hide timers
+    if (card._hideTimeout) {
+      clearTimeout(card._hideTimeout);
+      delete card._hideTimeout;
+    }
+
+    // ensure card is in flow before removing hidden to animate
+    card.style.display = "block";
+
+    // small delay to ensure the browser registers display:block before removing the hidden class
+    card._showTimeout = setTimeout(() => {
+      card.classList.remove("hidden");
+      card.setAttribute("aria-hidden", "false");
+      if (card._showTimeout) {
+        clearTimeout(card._showTimeout);
+        delete card._showTimeout;
+      }
+    }, 20);
+  }
+
+  function applyCollapsedView() {
+    const matching = getMatchingCards();
+
+    // First, show the matching cards that should be visible (prevents overlap issues)
+    if (matching.length > MIN_VISIBLE) {
+      if (collapsed) {
+        // show first MIN_VISIBLE only, hide rest with animation
+        matching.forEach((c, i) =>
+          i < MIN_VISIBLE ? showCard(c) : hideCard(c)
+        );
+        if (toggle) {
+          toggle.style.display = "inline-block";
+          toggle.textContent = "Show more";
+          toggle.setAttribute("aria-expanded", "false");
+        }
+      } else {
+        // expanded - show all matching
+        matching.forEach((c) => showCard(c));
+        if (toggle) {
+          toggle.style.display = "inline-block";
+          toggle.textContent = "Show less";
+          toggle.setAttribute("aria-expanded", "true");
+        }
+      }
+    } else {
+      // fewer than MIN_VISIBLE: show all and hide toggle
+      matching.forEach((c) => showCard(c));
+      if (toggle) toggle.style.display = "none";
+    }
+
+    // Hide non-matching cards (do this after showing matching to avoid transient gaps)
+    formCards.forEach((card) => {
+      if (matching.indexOf(card) === -1) hideCard(card);
+    });
+  }
+
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      currentFilter = btn.getAttribute("data-filter");
+      // reset to collapsed view when filter changes
+      collapsed = true;
+      applyCollapsedView();
+    });
+  });
+
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      collapsed = !collapsed;
+      applyCollapsedView();
+    });
+  }
+
+  // Add ripple effect to buttons
+  document.querySelectorAll(".btn").forEach((btn) => {
+    btn.addEventListener("click", function (e) {
+      // create ripple
+      const rect = this.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const circle = document.createElement("span");
+      circle.className = "ripple";
+      circle.style.width = circle.style.height = size + "px";
+      circle.style.left = e.clientX - rect.left - size / 2 + "px";
+      circle.style.top = e.clientY - rect.top - size / 2 + "px";
+      this.appendChild(circle);
+      // remove after animation
+      setTimeout(() => circle.remove(), 650);
+    });
+  });
+
+  // Initialize - show all then apply collapse so transitions work
+  formCards.forEach((c) => showCard(c));
+  applyCollapsedView();
+});
+
 /* ===== Multiple Users - Collect Data ===== */
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("myForm");
