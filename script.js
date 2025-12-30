@@ -244,6 +244,112 @@ document.addEventListener("DOMContentLoaded", function () {
   applyCollapsedView();
 });
 
+/* ===== Portfolio Collapse + Show more (collapsed view) ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const portfolioBoxes = Array.from(document.querySelectorAll(".Portfolio-box"));
+  const portfolioToggle = document.getElementById("portfolio-toggle");
+  const MIN_VISIBLE_PORTFOLIO = 9;
+  let collapsedPortfolio = true;
+
+  function showPort(box) {
+    if (box._hideTimeout) {
+      clearTimeout(box._hideTimeout);
+      delete box._hideTimeout;
+    }
+    box.style.display = "block";
+    box._showTimeout = setTimeout(() => {
+      box.classList.remove("hidden");
+      box.setAttribute("aria-hidden", "false");
+      if (box._showTimeout) {
+        clearTimeout(box._showTimeout);
+        delete box._showTimeout;
+      }
+    }, 20);
+  }
+
+  function hidePort(box) {
+    if (box._showTimeout) {
+      clearTimeout(box._showTimeout);
+      delete box._showTimeout;
+    }
+
+    box.classList.add("hidden");
+    box.setAttribute("aria-hidden", "true");
+
+    if (box._hideTimeout) clearTimeout(box._hideTimeout);
+
+    const onEnd = (e) => {
+      if (e.propertyName === "max-height" || e.propertyName === "opacity") {
+        box.style.display = "none";
+        box.removeEventListener("transitionend", onEnd);
+        if (box._hideTimeout) {
+          clearTimeout(box._hideTimeout);
+          delete box._hideTimeout;
+        }
+      }
+    };
+
+    box.addEventListener("transitionend", onEnd);
+
+    box._hideTimeout = setTimeout(() => {
+      box.style.display = "none";
+      box.removeEventListener("transitionend", onEnd);
+      delete box._hideTimeout;
+    }, 500);
+  }
+
+  function applyPortfolioView() {
+    const total = portfolioBoxes.length;
+
+    if (total > MIN_VISIBLE_PORTFOLIO) {
+      if (collapsedPortfolio) {
+        portfolioBoxes.forEach((b, i) => (i < MIN_VISIBLE_PORTFOLIO ? showPort(b) : hidePort(b)));
+        if (portfolioToggle) {
+          portfolioToggle.style.display = "inline-block";
+          portfolioToggle.textContent = "Show more";
+          portfolioToggle.setAttribute("aria-expanded", "false");
+        }
+      } else {
+        portfolioBoxes.forEach((b) => showPort(b));
+        if (portfolioToggle) {
+          portfolioToggle.style.display = "inline-block";
+          portfolioToggle.textContent = "Show less";
+          portfolioToggle.setAttribute("aria-expanded", "true");
+        }
+      }
+    } else {
+      portfolioBoxes.forEach((b) => showPort(b));
+      if (portfolioToggle) portfolioToggle.style.display = "none";
+    }
+  }
+
+  if (portfolioToggle) {
+    portfolioToggle.addEventListener("click", () => {
+      collapsedPortfolio = !collapsedPortfolio;
+      applyPortfolioView();
+    });
+  }
+
+  // initialize
+  portfolioBoxes.forEach((b) => showPort(b));
+  applyPortfolioView();
+
+  // make whole portfolio box clickable if it contains a link
+  portfolioBoxes.forEach((b) => {
+    const link = b.querySelector('a[href]');
+    if (link) {
+      b.style.cursor = 'pointer';
+      b.addEventListener('click', (e) => {
+        // if the user clicked an actual anchor or a button inside, let that handle the click
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        // otherwise open the linked site in a new tab
+        window.open(link.href, '_blank');
+      });
+    }
+  });
+
+});
+
 /* ===== Multiple Users - Collect Data ===== */
 document.addEventListener("DOMContentLoaded", function () {
   const form = document.getElementById("myForm");
